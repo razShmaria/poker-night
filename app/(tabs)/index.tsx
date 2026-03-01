@@ -17,6 +17,8 @@ import { useSessionStore } from "../../stores/sessionStore";
 import { useAuthStore } from "../../stores/authStore";
 import { PlayerBuyInCard } from "../../components/session/PlayerBuyInCard";
 import { supabase } from "../../lib/supabase";
+import { calculatePlayerBalances, calculateTransfers } from "../../lib/settlement";
+import type { Session, SessionPlayerWithProfile, Profile, PlayerBalance, Transfer } from "../../types";
 
 export default function HomeScreen() {
   const {
@@ -107,8 +109,8 @@ function ActiveSession({
   totalPot,
   totalChips,
 }: {
-  session: import("../../types").Session;
-  players: import("../../types").SessionPlayerWithProfile[];
+  session: Session;
+  players: SessionPlayerWithProfile[];
   totalPot: number;
   totalChips: number;
 }) {
@@ -269,7 +271,7 @@ function AddPlayerModal({
 }) {
   const { addPlayerToSession } = useSessionStore();
   const [search, setSearch] = useState("");
-  const [profiles, setProfiles] = useState<import("../../types").Profile[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -284,7 +286,7 @@ function AddPlayerModal({
       .ilike("name", `%${query}%`)
       .not("id", "in", `(${existingPlayerIds.join(",") || "null"})`)
       .limit(20);
-    setProfiles((data as import("../../types").Profile[]) ?? []);
+    setProfiles((data as Profile[]) ?? []);
     setLoading(false);
   }
 
@@ -353,14 +355,12 @@ function EndGameModal({
   players,
   onClose,
 }: {
-  session: import("../../types").Session;
-  players: import("../../types").SessionPlayerWithProfile[];
+  session: Session;
+  players: SessionPlayerWithProfile[];
   onClose: () => void;
 }) {
   const { saveSettlements, completeSession } = useSessionStore();
   const [saving, setSaving] = useState(false);
-
-  const { calculatePlayerBalances, calculateTransfers } = require("../../lib/settlement");
 
   const balances = calculatePlayerBalances(
     players.map((p) => ({
@@ -375,7 +375,7 @@ function EndGameModal({
     session.host_cost ?? 0
   );
 
-  const transfers: import("../../types").Transfer[] = calculateTransfers(balances);
+  const transfers: Transfer[] = calculateTransfers(balances);
 
   async function handleSave() {
     setSaving(true);
@@ -403,8 +403,8 @@ function EndGameModal({
               רווח / הפסד לשחקן
             </Text>
             {balances
-              .sort((a: import("../../types").PlayerBalance, b: import("../../types").PlayerBalance) => b.netBalance - a.netBalance)
-              .map((b: import("../../types").PlayerBalance) => (
+              .sort((a: PlayerBalance, b: PlayerBalance) => b.netBalance - a.netBalance)
+              .map((b: PlayerBalance) => (
                 <View
                   key={b.playerId}
                   className="flex-row justify-between items-center py-2.5 border-b border-[#1e3a52]"
@@ -427,7 +427,7 @@ function EndGameModal({
                 <Text className="text-gray-400 text-sm font-semibold mt-4 mb-2 text-right">
                   💸 סילוקים ({transfers.length} העברות)
                 </Text>
-                {transfers.map((t: import("../../types").Transfer, i: number) => (
+                {transfers.map((t: Transfer, i: number) => (
                   <View
                     key={i}
                     className="bg-[#162437] rounded-xl p-3 mb-2 flex-row justify-between items-center"
